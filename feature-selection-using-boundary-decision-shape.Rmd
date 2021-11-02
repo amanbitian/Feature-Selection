@@ -1,0 +1,546 @@
+---
+title: "Tabular Playground Series - Oct 2021"
+output: 
+    html_document:
+      toc: true
+      theme: united
+---
+
+```{r, setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache.lazy = FALSE)
+```
+
+```{r, include=FALSE}
+remotes::install_github("jthomasmock/gtExtras")
+```
+
+# **Context**
+
+The dataset used for this competition is synthetic, but based on a real dataset and generated using a CTGAN. The original dataset deals with predicting the biological response of molecules given various chemical properties. Although the features are anonymized, they have properties relating to real-world features.
+
+**About this notebook**
+
+In this beginner level notebook, we focus mainly in  the relationship between
+the target variable and the features of dataset both numerical and categorical, our aim is to figure out the patterns of distribution given the classes of the response variable, and the boundary classification shape. 
+The boundary classification shape framework is inspired by ISL book (Chapter 4 - classification).
+
+# **1. Data imports**
+
+First, importing and preparing the data.
+
+Because this notebook is abount an EDA which aims essential to highlight the most important patterns of all features, we proceed to a random sampling of our training data for computational convenience. This random sample is without any loss for this  EDA purpose. 
+
+
+```{r, warning = FALSE, message = FALSE}
+
+# Import libraries 
+
+library(tidyverse)
+library(gt)
+library(gtExtras)
+library(cowplot)
+
+# Import dataset
+
+train <- read_csv("../input/tabular-playground-series-oct-2021/train.csv")
+
+#  Sampling the data for EDA work 
+
+set.seed(1)
+
+train_samp_small <- train %>% sample_n(size = 10000)
+
+train_samp_large <- train %>% sample_n(size = 300000)
+
+# Defining the categorical variables
+
+train_samp_small1 <- train_samp_small %>% 
+  mutate(across(.cols = c(f22, f43, f242:target), .fns = as.character)) 
+
+train_samp_large1 <- train_samp_large %>% 
+  mutate(across(.cols = c(f22, f43, f242:target), .fns = as.character))
+```
+
+# **2. Summary statistics**
+
+In this section we created a table that resume the summary statistics of data both numerical and categorical. 
+
+```{r, warning=FALSE, fig.align='center', out.extra='angle=90'}
+# Tidy summary statistics table
+
+ts1 <- train_samp_small %>% 
+  summarise_at(vars(f0:target), funs(mean, sd, min, median, max)) %>% 
+  gather("f0_mean":"target_max", key = "feature", value = "value") %>% 
+  separate(feature, c("feature", "fun"), sep = "_") %>% 
+  mutate(num = str_extract(feature, "\\d+"),
+         num = as.numeric(num)) %>% 
+  spread(fun, value = value) %>% 
+  arrange(num) %>% 
+  mutate(cv = sd / mean) %>% 
+  select(feature, mean, sd, cv, min, median, max)
+
+# Add grammer to table 
+
+ts1 %>% 
+  gt() %>% 
+  gt_plt_bar_pct(column = cv, scaled = F) %>%
+  cols_align("center", contains("scale")) %>%
+    fmt_number(
+    columns = "mean":"max",
+    decimals = 2) %>% 
+  tab_header(title = "Summary statistics of tps_oct21",
+             subtitle = "* The coefficient of variation CV is displayed visually with a bar chart") %>%
+  cols_width(starts_with("feature") ~ px(80),
+             everything() ~ px(60)) %>%
+  data_color(columns = c(2,3,5,6,7),
+             colors = scales::col_numeric("GnBu", domain = c(0,1)),
+             alpha = 0.7) %>% 
+  gt_theme_538() %>% 
+ tab_options(table.font.size = px(11),
+             heading.title.font.size = px(18),
+             column_labels.font.size = px(12),
+             data_row.padding = px(1))
+
+```
+# **3. Data analysis**
+
+# **3.1. first, create plot funtions**
+
+In order to reproduce plots for each 284 features, we create a function for relevant plots, each function  will be piped inside loops to get appropriate visualization. 
+
+The plots selected for the numerical variables analysis are the data density with histogram and the boundary classification with line chart, and a bar plot of the main correlation with the target. The histograms are stacked by the target variable proportion, in order to compare the distribution of features across the response classes (1 and 0).
+
+The boundary classification plot is the prior conditional probability P(Y = 1 | X = feature) displayed along the feature values. The boundary classification, separate class 1 (target = 1) from class 2 (target = 0) for each observation of  the features. This primary classification enable to figure out the shape of the boundary decision (linear, sinusoidal, sigmoidal, etc.), which can be very helpful to detect appropriate feature for engineering and create strong baseline models.
+
+The stacked bar plot is selected for categorical variables. We display the distribution of the categorical feature and the target variable concurrently. 
+```{r}
+
+# Create the functions's variabels 
+
+# Set the names of numeric predictors variables : we split the numeric predictors in 12 groups contining 20 variable each one from f0 to f241
+
+predictors_num1 <- train_samp_small1 %>% 
+  select_if(is.numeric) %>% 
+     select(2:21 ) %>%
+     names() %>%
+     set_names()
+
+predictors_num2 <- train_samp_small1 %>% 
+  select_if(is.numeric) %>% 
+     select(22:41 ) %>%
+     names() %>%
+     set_names()
+
+predictors_num3 <- train_samp_small1 %>% 
+  select_if(is.numeric) %>% 
+     select(42:61) %>%
+     names() %>%
+     set_names()
+
+predictors_num4 <- train_samp_small1 %>% 
+  select_if(is.numeric) %>% 
+     select(62:81) %>%
+     names() %>%
+     set_names()
+
+predictors_num5 <- train_samp_small1 %>% 
+  select_if(is.numeric) %>% 
+     select(82:101) %>%
+     names() %>%
+     set_names()
+
+predictors_num6 <- train_samp_small1 %>% 
+  select_if(is.numeric) %>% 
+     select(102:121) %>%
+     names() %>%
+     set_names()
+
+predictors_num7 <- train_samp_small1 %>% 
+  select_if(is.numeric) %>% 
+     select(122:141) %>%
+     names() %>%
+     set_names()
+
+predictors_num8 <- train_samp_small1 %>% 
+  select_if(is.numeric) %>% 
+     select(142:161) %>%
+     names() %>%
+     set_names()
+
+predictors_num9 <- train_samp_small1 %>% 
+  select_if(is.numeric) %>% 
+     select(162:181) %>%
+     names() %>%
+     set_names()
+
+predictors_num10 <- train_samp_small1 %>% 
+  select_if(is.numeric) %>% 
+     select(182:201) %>%
+     names() %>%
+     set_names()
+
+predictors_num11 <- train_samp_small1 %>% 
+  select_if(is.numeric) %>% 
+     select(202:221) %>%
+     names() %>%
+     set_names()
+
+predictors_num12 <- train_samp_small1 %>% 
+  select_if(is.numeric) %>% 
+     select(222:241) %>%
+     names() %>%
+     set_names()
+
+
+# Set the names of Categorical predictors variables : we split the numeric predictors in 3 groups containing 15 variables.
+
+predictors_cat1 <- train_samp_small1 %>% 
+  select_if(is.character) %>% 
+  select(1:15) %>% 
+  names() %>%
+  set_names()
+
+predictors_cat2 <- train_samp_small1 %>% 
+  select_if(is.character) %>% 
+  select(16:30) %>% 
+  names() %>%
+  set_names()
+
+predictors_cat3 <- train_samp_small1 %>% 
+  select_if(is.character) %>% 
+  select(31:45) %>% 
+  names() %>%
+  set_names()
+
+
+# Define decimals 
+
+scaleFUN <- function(x) sprintf("%.1f", x)
+
+
+# Stacked histogram plot function 
+
+hist_fun <- function(x, y){
+  
+  gg1 <-  train_samp_small1 %>% 
+     ggplot(aes(x = .data[[x]],  fill = .data[[y]], group = .data[[y]]))+
+     geom_histogram(alpha = 0.8)
+    
+  gg1 + 
+    theme_bw()+
+    theme(legend.position = c(0.8, 0.6),
+          legend.key.height = unit(1, 'mm'),
+          legend.key.width = unit(4, 'mm'),
+          legend.title = element_text(size=7),
+          legend.text = element_text(size= 7),
+          legend.key.size = unit(0.8, "mm"),
+          axis.title.y = element_blank(),
+          axis.text.y =element_text(size=8),
+          axis.text.x = element_text(size = 8),
+          axis.title.x = element_text(size = 10))+
+    scale_y_continuous(labels=scaleFUN)+
+    scale_x_continuous(labels=scaleFUN)
+
+}
+
+# Boundary plot function 
+
+boundary_fun <- function(x, y, n = 7){
+  
+gg2 <-  train_samp_large1 %>%
+  group_by(cat = cut_interval(.data[[x]], n = n)) %>% 
+  summarize(avr = mean(.data[[y]] == "1", na.rm =T)) %>% 
+  ggplot(aes(cat, avr, group = 1)) + 
+  geom_line(size = 1, linetype = "dashed") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scaleFUN) +
+  labs(y = str_c("P(target = 1 | x = ", x, ")", sep = ""), x = x)
+  
+  gg2 + 
+    theme_bw()+
+    theme(axis.title.y = element_text(size = 8),
+        axis.text.y = element_text(size=8),
+        axis.text.x = element_text(size = 4),
+        axis.title.x = element_text(size = 10))
+  
+
+}
+
+
+# Stacked bar plot function
+
+bar_fun <- function(x, y) {
+  
+gg3 <- train_samp_small1 %>% 
+  ggplot(aes(x = .data[[x]], fill = .data[[y]])) +
+  geom_bar(width = 0.6, alpha = 0.9) +
+  scale_fill_manual(values = c("deepskyblue1", "gold")) +
+  labs(x = x , y = "Count", fill = y)
+ 
+  gg3 + 
+    theme_bw()+
+    theme(legend.position = "right",
+              legend.key.height = unit(1, 'mm'),
+              legend.key.width = unit(4, 'mm'),
+              legend.title = element_text(size=7),
+              legend.text = element_text(size= 7),
+              legend.key.size = unit(0.8, "mm"),
+              axis.title.y = element_text(size = 8),
+              axis.text.y = element_text(size=8),
+              axis.text.x = element_text(size = 8),
+              axis.title.x = element_text(size = 10))
+
+}
+```
+
+# **3.2. Visualizations**
+
+# **3.2.1. Numerical variables**
+
+# **Density distribution : stacked histogram**
+
+For illustration we display the code only for the first predictors_num1 group, for all other groups we apply the same code. 
+
+* hist_plots_num1 = **map**(predictors_num1,  ~ **hist_fun**(.x, "target") )
+
+* **plot_grid**(plotlist = hist_plots_num1, align = "h", ncol = 4)
+
+```{r,  echo=FALSE, fig.align='center', fig.width =8, fig.height= 6, out.extra='angle=90', warning = FALSE, message=FALSE}
+
+hist_plots_num1 <- map(predictors_num1,  ~ hist_fun(.x, "target") )
+
+plot_grid(plotlist = hist_plots_num1, align = "h", ncol = 4)
+
+```
+
+```{r,  echo=FALSE, fig.align='center', fig.width =8, fig.height= 6, out.extra='angle=90', warning = FALSE, message=FALSE}
+hist_plots_num2 <- map(predictors_num2,  ~ hist_fun(.x, "target") )
+
+plot_grid(plotlist = hist_plots_num2, align = "h", ncol = 4)
+
+```
+```{r,  echo=FALSE, fig.align='center', fig.width =8, fig.height= 6, out.extra='angle=90', warning = FALSE, message=FALSE}
+hist_plots_num3 <- map(predictors_num3,  ~ hist_fun(.x, "target") )
+
+plot_grid(plotlist = hist_plots_num3, align = "h", ncol = 4)
+```
+```{r,  echo=FALSE, fig.align='center', fig.width =8, fig.height= 6, out.extra='angle=90', warning = FALSE, message=FALSE}
+hist_plots_num4 <- map(predictors_num4,  ~ hist_fun(.x, "target") )
+
+plot_grid(plotlist = hist_plots_num4, align = "h", ncol = 4)
+```
+```{r, echo=FALSE, fig.align='center', fig.width =8, fig.height= 6, out.extra='angle=90', warning = FALSE, message=FALSE}
+
+hist_plots_num5 <- map(predictors_num5,  ~ hist_fun(.x, "target") )
+
+plot_grid(plotlist = hist_plots_num5, align = "h", ncol = 4)
+```
+```{r,  echo=FALSE, fig.align='center', fig.width =8, fig.height= 6, out.extra='angle=90', warning = FALSE, message=FALSE}
+hist_plots_num6 <- map(predictors_num6,  ~ hist_fun(.x, "target") )
+
+plot_grid(plotlist = hist_plots_num6, align = "h", ncol = 4)
+```
+```{r,  echo=FALSE, fig.align='center', fig.width =8, fig.height= 6, out.extra='angle=90', warning = FALSE, message=FALSE}
+hist_plots_num7 <- map(predictors_num7,  ~ hist_fun(.x, "target") )
+
+plot_grid(plotlist = hist_plots_num7, align = "h", ncol = 4)
+```
+```{r,  echo=FALSE, fig.align='center', fig.width =8, fig.height= 6, out.extra='angle=90', warning = FALSE, message=FALSE}
+hist_plots_num8 <- map(predictors_num8,  ~ hist_fun(.x, "target") )
+
+plot_grid(plotlist = hist_plots_num8, align = "h", ncol = 4)
+```
+```{r,  echo=FALSE, fig.align='center', fig.width =8, fig.height= 6, out.extra='angle=90', warning = FALSE, message=FALSE}
+hist_plots_num9 <- map(predictors_num9,  ~ hist_fun(.x, "target") )
+
+plot_grid(plotlist = hist_plots_num9, align = "h", ncol = 4)
+```
+```{r,  echo=FALSE, fig.align='center', fig.width =8, fig.height= 6, out.extra='angle=90', warning = FALSE, message=FALSE}
+hist_plots_num10 <- map(predictors_num10,  ~ hist_fun(.x, "target") )
+
+plot_grid(plotlist = hist_plots_num10, align = "h", ncol = 4)
+```
+```{r,  echo=FALSE, fig.align='center', fig.width =8, fig.height= 6, out.extra='angle=90', warning = FALSE, message=FALSE}
+hist_plots_num11 <- map(predictors_num11,  ~ hist_fun(.x, "target") )
+
+plot_grid(plotlist = hist_plots_num11, align = "h", ncol = 4)
+```
+```{r, echo=FALSE, fig.align='center', fig.width =8, fig.height= 6, out.extra='angle=90', warning = FALSE, message=FALSE}
+
+hist_plots_num12 <- map(predictors_num12,  ~ hist_fun(.x, "target") )
+
+plot_grid(plotlist = hist_plots_num12, align = "h", ncol = 4)
+```
+
+
+> There is various types of distribution. We highlighte also an importante number of bimodal and multimodal distribution.  
+
+
+# **Boundary classification plots : P(Y = 1 | X = feature) ~ feature**
+
+For illustration we display the code only for the first predictors_num1 group, for all other groups we apply the same code. 
+
+* boundary_plots_num1 <- **map**(predictors_num1,  ~ **boundary_fun**(.x, "target") )
+
+* **plot_grid**(plotlist = boundary_plots_num1, align = "h", ncol = 4)
+
+```{r,  echo=FALSE, fig.align='center', fig.width = 8, fig.height= 7, out.extra='angle=90', message = FALSE}
+boundary_plots_num1 <- map(predictors_num1,  ~ boundary_fun(.x, "target") )
+
+plot_grid(plotlist = boundary_plots_num1, align = "h", ncol = 4)
+
+```
+```{r, echo=FALSE, fig.align='center', fig.width = 8, fig.height= 7, out.extra='angle=90', message = FALSE}
+
+boundary_plots_num2 <- map(predictors_num2,  ~ boundary_fun(.x, "target") )
+
+plot_grid(plotlist = boundary_plots_num2, align = "h", ncol = 4)
+```
+```{r,  echo=FALSE, fig.align='center', fig.width = 8, fig.height= 7, out.extra='angle=90', message = FALSE}
+
+boundary_plots_num3 <- map(predictors_num3,  ~ boundary_fun(.x, "target") )
+
+plot_grid(plotlist = boundary_plots_num3, align = "h", ncol = 4)
+```
+```{r,  echo=FALSE, fig.align='center', fig.width = 8, fig.height= 7, out.extra='angle=90', message = FALSE}
+
+boundary_plots_num4 <- map(predictors_num4,  ~ boundary_fun(.x, "target") )
+
+plot_grid(plotlist = boundary_plots_num4, align = "h", ncol = 4)
+```
+```{r,  echo=FALSE, fig.align='center', fig.width = 8, fig.height= 7, out.extra='angle=90', message = FALSE}
+boundary_plots_num5 <- map(predictors_num5,  ~ boundary_fun(.x, "target") )
+
+plot_grid(plotlist = boundary_plots_num5, align = "h", ncol = 4)
+
+```
+```{r,  echo=FALSE, fig.align='center', fig.width = 8, fig.height= 7, out.extra='angle=90', message = FALSE}
+
+boundary_plots_num6 <- map(predictors_num6,  ~ boundary_fun(.x, "target") )
+
+plot_grid(plotlist = boundary_plots_num6, align = "h", ncol = 4)
+```
+```{r,  echo=FALSE, fig.align='center', fig.width = 8, fig.height= 7, out.extra='angle=90', message = FALSE}
+
+boundary_plots_num7 <- map(predictors_num7,  ~ boundary_fun(.x, "target") )
+
+plot_grid(plotlist = boundary_plots_num7, align = "h", ncol = 4)
+```
+```{r,  echo=FALSE, fig.align='center', fig.width = 8, fig.height= 7, out.extra='angle=90', message = FALSE}
+boundary_plots_num8 <- map(predictors_num8,  ~ boundary_fun(.x, "target") )
+
+plot_grid(plotlist = boundary_plots_num8, align = "h", ncol = 4)
+
+```
+```{r,  echo=FALSE, fig.align='center', fig.width = 8, fig.height= 7, out.extra='angle=90', message = FALSE}
+boundary_plots_num9 <- map(predictors_num9,  ~ boundary_fun(.x, "target") )
+
+plot_grid(plotlist = boundary_plots_num9, align = "h", ncol = 4)
+
+```
+```{r,  echo=FALSE, fig.align='center', fig.width = 8, fig.height= 7, out.extra='angle=90', message = FALSE}
+
+boundary_plots_num10 <- map(predictors_num10,  ~ boundary_fun(.x, "target") )
+
+plot_grid(plotlist = boundary_plots_num10, align = "h", ncol = 4)
+```
+```{r,  echo=FALSE, fig.align='center', fig.width = 8, fig.height= 7, out.extra='angle=90', message = FALSE}
+boundary_plots_num11 <- map(predictors_num11,  ~ boundary_fun(.x, "target") )
+
+plot_grid(plotlist = boundary_plots_num11, align = "h", ncol = 4)
+
+```
+```{r,  echo=FALSE, fig.align='center', fig.width = 8, fig.height= 7, out.extra='angle=90', message = FALSE}
+boundary_plots_num12 <- map(predictors_num12,  ~ boundary_fun(.x, "target") )
+
+plot_grid(plotlist = boundary_plots_num12, align = "h", ncol = 4)
+
+```
+
+
+> The boundary classification plots highlight  an important number of features which have a significative relationship with the target variables. We can categorize this variable by the shape of the boundary classification :
+
+> 
+* Linear boundary : features 13, 53, 55, 56, 69, 71, 72, 74, 77, 78, 99, 119, 131, 134, 156, 201.
+>
+* non-linear boundary : features 75, 79,80, 82, 112, 133, 136, 143,157, 158, 162, 179, 187, 210, 226, 238.
+
+> Howerver the majority variables present no clear relationship where the conditional probability is constant ~ P(Y = 1 | X = feature) = 0.5. 
+
+# **What correlation tell us about the relationship with the target variable ?**
+
+The correlation between the features and the target variable can be of great added value 
+to confirm the results of the boundary classification analysis.
+If the comparison is made carefully, this analysis enable to detect potential linear relationship. lets see how... 
+
+```{r, fig.align='center', out.extra='angle=90'}
+
+# Correlation with target variable 
+
+cor_target <- train_samp_large %>% 
+  select(everything(),-c("id", "f22", "f43", "f242":"f284")) %>% 
+  cor(method = "pearson") %>% 
+  as_tibble() %>%
+  filter(row_number() == 241) %>% 
+  gather("f0":"f241", key = "feature", value = "cor") %>% 
+  select(-target)
+
+
+# target correlation plot 
+
+gg_cor = cor_target %>% 
+  mutate(cor_abs = abs(cor)) %>% 
+  arrange(desc(cor_abs)) %>% 
+  filter(row_number() == 1:20) %>% 
+  ggplot(aes(reorder(feature, desc(cor_abs)), cor_abs))+ 
+  geom_col(aes(fill = feature), show.legend = F)
+
+
+gg_cor + 
+  theme_bw()+
+  labs(title = "Sorted bars of the 20 highest correlation of numerical features with the target", x = "numerical features", y = "absolute correlation")+
+  theme(plot.title = element_text(size = 12),
+        axis.title.y = element_text(size = 8),
+        axis.text.y = element_text(size=8),
+        axis.text.x = element_text(size = 8),
+        axis.title.x = element_text(size = 8))
+    
+```
+
+> * Overall there is low correlation scores between the features and the target variable. This result must be taken carefully. 
+Overall there is low correlation scores between the features and the target variable. This result must be taken carefully. The highest correlation values obtained do not garantee a linearity, an important outlier can induce high score of correlation, while the true relation isn't. Furthermore there is numbers of variables that have a non linear relationship with the target variable. We should compare these results respectively with the boundary classification plots and the density distribution in order to do any feature selection decision.  
+
+
+# **3.2.2. Categorical variables**
+
+# **Stacked bar plot with feature and target variable concurrently**
+
+For illustration we display the code only for the first predictors_num1 group, for all other groups we apply the same code. 
+
+
+* bar_plots_cat1 <- **map**(predictors_cat1,  ~ **bar_fun**(.x, "target") )
+
+* **plot_grid**(plotlist = bar_plots_cat1, align = "h", ncol = 4)
+
+```{r,  echo=FALSE, fig.align='center', fig.width = 9, fig.height= 8, out.extra='angle=90', warning= FALSE}
+
+bar_plots_cat1 <- map(predictors_cat1,  ~ bar_fun(.x, "target") )
+
+plot_grid(plotlist = bar_plots_cat1, align = "h", ncol = 4)
+
+```
+```{r,  echo=FALSE, fig.align='center', fig.width = 9, fig.height= 8, out.extra='angle=90', warning= FALSE}
+
+bar_plots_cat2 <- map(predictors_cat2,  ~ bar_fun(.x, "target") )
+
+plot_grid(plotlist = bar_plots_cat2, align = "h", ncol = 4)
+```
+```{r,  echo=FALSE, fig.align='center', fig.width = 9, fig.height= 8, out.extra='angle=90', warning= FALSE}
+bar_plots_cat3 <- map(predictors_cat3,  ~ bar_fun(.x, "target") )
+
+plot_grid(plotlist = bar_plots_cat3, align = "h", ncol = 4)
+
+```
+
+> There is only one dummy variable f22 that have a significant association with target variabel. Target = 1 seems to be very common with F22 = 0. All other binary variables doesnt show any association with the target variable, bar plots displays an equilibred proportion ~ 50% for each combinaison. 
+
+
