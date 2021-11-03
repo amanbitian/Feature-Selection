@@ -2,6 +2,8 @@
 
 ![1_H7XDAYHFWIy4JXy-WXhUZw](https://user-images.githubusercontent.com/86042628/140170825-ecada75f-e199-44a0-a60f-4c33ca7428c3.jpeg)
 
+![image](https://user-images.githubusercontent.com/86042628/140192477-69f88401-69e4-4d48-b462-9d6465310ee8.png)
+
 
 I will share 3 filter (Feature selection) techniques that are easy to use and also gives good results.
 1. Univariate Selection
@@ -67,3 +69,4 @@ Heatmap makes it easy to identify which features are most related to the target 
 `plt.figure(figsize=(20,20))`  
 `#plot heat map`  
 `g=sns.heatmap(data[top_corr_features].corr(),annot=True,cmap="RdYlGn")`  
+
