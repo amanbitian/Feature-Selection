@@ -1,6 +1,9 @@
 # Feature-Selection
 
-I will share 3 Feature selection techniques that are easy to use and also gives good results.
+![1_H7XDAYHFWIy4JXy-WXhUZw](https://user-images.githubusercontent.com/86042628/140170825-ecada75f-e199-44a0-a60f-4c33ca7428c3.jpeg)
+
+
+I will share 3 filter (Feature selection) techniques that are easy to use and also gives good results.
 1. Univariate Selection
 2. Feature Importance
 3.Correlation Matrix with Heatmap
